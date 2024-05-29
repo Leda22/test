@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Python App</title>
+    <!-- Add any additional styles or scripts here -->
+</head>
+<body>
+    <h1>My Python App</h1>
+    <p>This web page displays the dominant color detected from your camera feed and plays a sound based on that color.</p>
+    <div id="frame-container">
+        <video id="camera-feed" autoplay></video>
+    </div>
+
+    <script>
+        // JavaScript code to handle camera feed and display dominant color
+        const video = document.getElementById('camera-feed');
+        const constraints = { video: true };
+
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                video.srcObject = stream;
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        }
+
+        startCamera();
+    </script>
+</body>
+</html>
