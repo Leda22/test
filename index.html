@@ -1,21 +1,34 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Python App</title>
+    <title>Color Sound</title>
     <!-- Add any additional styles or scripts here -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0; /* Set initial background color */
+        }
+        #color-name {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-    <h1>My Python App</h1>
+    <h1>Color Sound</h1>
     <p>This web page displays the dominant color detected from your camera feed and plays a sound based on that color.</p>
     <div id="frame-container">
         <video id="camera-feed" autoplay></video>
     </div>
+    <div id="color-name"></div>
 
     <script>
-        // JavaScript code to handle camera feed and display dominant color
+        // JavaScript code to handle camera feed and sound playback
         const video = document.getElementById('camera-feed');
+        const colorNameElement = document.getElementById('color-name');
         const constraints = { video: true };
 
         async function startCamera() {
@@ -25,6 +38,48 @@
             } catch (error) {
                 console.error('Error accessing camera:', error);
             }
+        }
+
+        // Function to play sound based on color frequency
+        function playSound(frequency) {
+            const audioContext = new AudioContext();
+            const oscillator = audioContext.createOscillator();
+            oscillator.frequency.value = frequency;
+            oscillator.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.1); // Adjust duration as needed
+
+            // Change background color after playing sound
+            const randomColor = getRandomColor();
+            document.body.style.backgroundColor = randomColor;
+            colorNameElement.textContent = getColorName(randomColor);
+        }
+
+        // Generate a random color (for background)
+        function getRandomColor() {
+            const r = Math.floor(Math.random() * 256);
+            const g = Math.floor(Math.random() * 256);
+            const b = Math.floor(Math.random() * 256);
+            return `rgb(${r},${g},${b})`;
+        }
+
+        // Map color to a frequency (you can replace this with your logic)
+        function colorToFrequency(color) {
+            // Implement your color-to-frequency conversion
+            // For now, let's use a fixed frequency (440 Hz) for demonstration
+            return 440;
+        }
+
+        // Get a color name (you can replace this with a more sophisticated approach)
+        function getColorName(color) {
+            // For demonstration, let's use basic color names
+            const colorNames = {
+                'rgb(255,0,0)': 'Red',
+                'rgb(0,255,0)': 'Green',
+                'rgb(0,0,255)': 'Blue'
+                // Add more color mappings as needed
+            };
+            return colorNames[color] || 'Unknown';
         }
 
         startCamera();
