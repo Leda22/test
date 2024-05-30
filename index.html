@@ -3,85 +3,124 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Color Sound</title>
-    <!-- Add any additional styles or scripts here -->
+    <title>Color Detection and Sound Generation</title>
     <style>
-        body {
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            color: white;
             font-family: Arial, sans-serif;
-            text-align: center;
-            background-color: #f0f0f0; /* Set initial background color */
         }
-        #color-name {
-            font-size: 24px;
-            margin-bottom: 20px;
+        #camera {
+            display: none;
+        }
+        #canvas {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>Color Sound</h1>
-    <p>This web page displays the dominant color detected from your camera feed and plays a sound based on that color.</p>
-    <div id="frame-container">
-        <video id="camera-feed" autoplay></video>
-    </div>
-    <div id="color-name"></div>
 
-    <script>
-    const video = document.getElementById('camera-feed');
-    const colorNameElement = document.getElementById('color-name');
-    const constraints = { video: true };
+<video id="camera" autoplay></video>
+<canvas id="canvas"></canvas>
+<audio id="audio" autoplay></audio>
 
-    async function startCamera() {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+<script>
+    const video = document.getElementById('camera');
+    const canvas = document.getElementById('canvas');
+    const audio = document.getElementById('audio');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
             video.srcObject = stream;
-        } catch (error) {
-            console.error('Error accessing camera:', error);
+            video.play();
+        })
+        .catch(err => {
+            console.error("Error accessing webcam: ", err);
+        });
+
+    function getDominantColor(context, width, height) {
+        const frame = context.getImageData(0, 0, width, height);
+        const length = frame.data.length;
+        const color = { r: 0, g: 0, b: 0, count: 0 };
+
+        for (let i = 0; i < length; i += 4) {
+            color.r += frame.data[i];
+            color.g += frame.data[i + 1];
+            color.b += frame.data[i + 2];
+            color.count++;
         }
+
+        color.r = Math.round(color.r / color.count);
+        color.g = Math.round(color.g / color.count);
+        color.b = Math.round(color.b / color.count);
+
+        return `rgb(${color.r},${color.g},${color.b})`;
     }
 
-    // Function to play sound based on color frequency
     function playSound(frequency) {
-        const audioContext = new AudioContext();
-        const oscillator = audioContext.createOscillator();
-        oscillator.frequency.value = frequency;
-        oscillator.connect(audioContext.destination);
+        const context = new AudioContext();
+        const oscillator = context.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, context.currentTime);
+        oscillator.connect(context.destination);
         oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.1); // Adjust duration as needed
-
-        // Change background color after playing sound
-        const randomColor = getRandomColor();
-        document.body.style.backgroundColor = randomColor;
-        colorNameElement.textContent = getColorName(randomColor);
+        oscillator.stop(context.currentTime + 0.1);
     }
 
-    // Generate a random color (for background)
-    function getRandomColor() {
-        const r = Math.floor(Math.random() * 256);
-        const g = Math.floor(Math.random() * 256);
-        const b = Math.floor(Math.random() * 256);
-        return `rgb(${r},${g},${b})`;
-    }
-
-    // Map color to a frequency (you can replace this with your logic)
     function colorToFrequency(color) {
-        // Implement your color-to-frequency conversion
-        // For now, let's use a fixed frequency (440 Hz) for demonstration
-        return 440;
+        const [r, g, b] = color.match(/\d+/g).map(Number);
+        const hsl = rgbToHsl(r, g, b);
+        const frequency = 440 + (hsl[0] * 880); // Map hue to frequency (A4 to A5)
+        return frequency;
     }
 
-    // Get a color name (you can replace this with a more sophisticated approach)
-    function getColorName(color) {
-        // For demonstration, let's use basic color names
-        const colorNames = {
-            'rgb(255,0,0)': 'Red',
-            'rgb(0,255,0)': 'Green',
-            'rgb(0,0,255)': 'Blue'
-            // Add more color mappings as needed
-        };
-        return colorNames[color] || 'Unknown';
+    function rgbToHsl(r, g, b) {
+        r /= 255;
+        g /= 255;
+        b /= 255;
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        let h, s, l = (max + min) / 2;
+
+        if (max === min) {
+            h = s = 0;
+        } else {
+            const d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+            switch (max) {
+                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                case g: h = (b - r) / d + 2; break;
+                case b: h = (r - g) / d + 4; break;
+            }
+            h /= 6;
+        }
+
+        return [h, s, l];
     }
 
-    startCamera();
+    function detectColorAndPlaySound() {
+        const context = canvas.getContext('2d');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        const color = getDominantColor(context, canvas.width, canvas.height);
+        document.body.style.backgroundColor = color;
+
+        const frequency = colorToFrequency(color);
+        playSound(frequency);
+
+        requestAnimationFrame(detectColorAndPlaySound);
+    }
+
+    video.addEventListener('play', () => {
+        detectColorAndPlaySound();
+    });
 </script>
 
 </body>
