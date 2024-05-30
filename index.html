@@ -9,6 +9,7 @@
             height: 100%;
             margin: 0;
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
             background-color: #000;
@@ -16,7 +17,12 @@
             font-family: Arial, sans-serif;
         }
         #camera {
-            display: none;
+            width: 100%;
+            max-width: 600px;
+        }
+        #colorName {
+            margin-top: 20px;
+            font-size: 24px;
         }
         #canvas {
             display: none;
@@ -27,12 +33,25 @@
 
 <video id="camera" autoplay></video>
 <canvas id="canvas"></canvas>
-<audio id="audio" autoplay></audio>
+<div id="colorName">Detecting color...</div>
 
 <script>
     const video = document.getElementById('camera');
     const canvas = document.getElementById('canvas');
-    const audio = document.getElementById('audio');
+    const colorNameDiv = document.getElementById('colorName');
+    let audioContext;
+    let oscillator;
+
+    const colors = {
+        "rgb(255, 0, 0)": "Red",
+        "rgb(0, 255, 0)": "Green",
+        "rgb(0, 0, 255)": "Blue",
+        "rgb(255, 255, 0)": "Yellow",
+        "rgb(0, 255, 255)": "Cyan",
+        "rgb(255, 0, 255)": "Magenta",
+        "rgb(255, 255, 255)": "White",
+        "rgb(0, 0, 0)": "Black"
+    };
 
     navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
@@ -63,19 +82,23 @@
     }
 
     function playSound(frequency) {
-        const context = new AudioContext();
-        const oscillator = context.createOscillator();
+        if (!audioContext) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (oscillator) {
+            oscillator.stop();
+        }
+        oscillator = audioContext.createOscillator();
         oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(frequency, context.currentTime);
-        oscillator.connect(context.destination);
+        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime);
+        oscillator.connect(audioContext.destination);
         oscillator.start();
-        oscillator.stop(context.currentTime + 0.1);
     }
 
     function colorToFrequency(color) {
         const [r, g, b] = color.match(/\d+/g).map(Number);
         const hsl = rgbToHsl(r, g, b);
-        const frequency = 440 + (hsl[0] * 880); // Map hue to frequency (A4 to A5)
+        const frequency = 220 + (hsl[0] * 440); // Map hue to frequency (A3 to A4)
         return frequency;
     }
 
@@ -103,17 +126,24 @@
         return [h, s, l];
     }
 
+    function getColorName(color) {
+        return colors[color] || "Unknown Color";
+    }
+
     function detectColorAndPlaySound() {
-        const context = canvas.getContext('2d');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-        const color = getDominantColor(context, canvas.width, canvas.height);
-        document.body.style.backgroundColor = color;
+            const color = getDominantColor(context, canvas.width, canvas.height);
+            document.body.style.backgroundColor = color;
+            colorNameDiv.innerText = getColorName(color);
 
-        const frequency = colorToFrequency(color);
-        playSound(frequency);
+            const frequency = colorToFrequency(color);
+            playSound(frequency);
+        }
 
         requestAnimationFrame(detectColorAndPlaySound);
     }
